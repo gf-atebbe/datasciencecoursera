@@ -38,4 +38,5 @@ colnames(merged) <- c(features$V2, "Source", "labels", "Subject", "Activity")
 
 ## 5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
 s <- split(merged, list(merged$Activity, merged$Subject))
-tidy <- sapply(s, function(x) colMeans(x[, 1:length(features)], na.rm=TRUE))
+tidy <- sapply(s, function(x) colMeans(x[, 1:length(features$V1)], na.rm=TRUE))
+write.table(tidy, file='tidy_data_set.txt', sep=',')
