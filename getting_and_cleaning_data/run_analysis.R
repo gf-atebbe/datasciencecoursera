@@ -5,7 +5,7 @@
 ## 4. Appropriately labels the data set with descriptive activity names. 
 ## 5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
 
-setwd('~/Documents/code/datasciencecoursera/getting_and_cleaning_data/')
+# setwd('~/Documents/code/datasciencecoursera/getting_and_cleaning_data/')
 
 ## Parse the list of features
 features <- read.table('UCI HAR Dataset/features.txt', header=FALSE, stringsAsFactors=FALSE)
