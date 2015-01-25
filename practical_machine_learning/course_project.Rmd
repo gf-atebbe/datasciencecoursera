@@ -1,0 +1,116 @@
+---
+title: "Practical Machine Learning"
+author: "Adam Tebbe"
+date: "January 25, 2015"
+output: html_document
+---
+
+# Feature Selection
+
+## Download Data Files
+```{r}
+library(caret, quietly=TRUE)
+library(RCurl)
+
+training_url <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+test_url     <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+
+trainig_cxn <- getURL(training_url)
+test_cxn    <- getURL(test_url)
+
+raw_train <- read.csv(textConnection(trainig_cxn), na.strings = c('NA','#DIV/0!',''))
+raw_test  <- read.csv(textConnection(test_cxn), na.strings = c('NA','#DIV/0!',''))
+```
+
+## Pre-process Data
+
+The first 7 fields are non-numeric so these will be excluded.  The last field is the categorical class that the prediction model classifies.  All other fields are cast to numeric values.
+
+```{r}
+for(i in c(8:ncol(raw_train)-1)) {
+  raw_train[,i] = as.numeric(as.character(raw_train[,i]))
+  raw_test[,i] = as.numeric(as.character(raw_test[,i]))
+}
+```
+
+We are going to drop the first 7 columns from the data set, as well as any columns where all of the values are missing.
+
+
+```{r}
+features <- colnames(raw_train)
+features <- colnames(raw_train[colSums(is.na(raw_train)) == 0])
+features <- features[-c(1:7)]
+```
+
+## Partition the training data
+
+The training data set is randomly split into 2 data sets: one set to build the model and a smaller set for cross-validation.  80% of the training set is used for training the model and the remaining 20% is set aside for cross-validation.
+
+```{r}
+set.seed(1234)
+
+index_train <- createDataPartition(y=raw_train$classe, p=0.80, list=FALSE)
+
+data_train <- raw_train[index_train, features]
+data_xval <- raw_train[-index_train, features]
+
+dim(data_train)
+dim(data_xval)
+```
+
+As shown in the histogram below, each of the five classes are roughly equivilent in their likelihood.  This indicates that optimizing the model for accuracy while minizing out of sample error is an appropriate strategy.
+
+
+```{r}
+library(ggplot2)
+ggplot(data_train, aes(x=classe)) + geom_histogram(binwidth=.5, fill="lightblue") + ggtitle("Distribution of classe in the training set")
+```
+
+# Train model
+
+A random forest is used for building a model.
+
+```{r}
+mod_rf <- train(classe ~ .,
+                data = data_train, 
+                method = 'rf', 
+                trControl = trainControl(method = "cv", 
+                                         number = 4, 
+                                         allowParallel = TRUE, 
+                                         verboseIter = TRUE))
+pred_rf <- predict(mod_rf,data_xval)
+cm_rf <- confusionMatrix(pred_rf,data_xval$classe)
+```
+
+It is useful to look at the calculated statistics from the confusion matrix from the cross-validation data for the model.
+
+```{r}
+cm_rf
+```
+
+The accuracy of the model is 0.9944. The out of sample error is 0.0056. The out of sample error is calculated as 1 - accuracy for predictions made against the cross-validation set. Considering that the test set is a sample size of only 20, an accuracy rate well above 99% is sufficient to expect that few or none of the test samples will be mis-classified.
+
+# Apply Model
+
+For the test results, there are 20 samples that have to be classified. Note that the column names are not consistent between the testing and training data. Once the predictions are made from the chosen Random Forest model, the prediction vector is shown.
+
+```{r}
+final_col <- length(colnames(raw_test[]))
+colnames(raw_test)[final_col] <- 'classe'
+test_rf <- predict(mod_rf,raw_test[,features])
+test_rf
+```
+
+Write out files for submission.
+
+```{r}
+write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+write_files(test_rf)
+```
